@@ -1,0 +1,28 @@
+name: Test
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Node Setup
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Setup Docker
+        uses: docker/setup-buildx-action@v2
+      - name: Install Dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Unit Tests
+        run: npm test
+      - name: Functional Tests
+        run: npm run test:functional
+      - name: Test Coverage
+        run: npm run coverage

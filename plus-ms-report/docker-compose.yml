@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  plus-ms-report:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: plus-ms-report
+    ports:
+      - '3009:3009'
+    environment:
+      - PORT=3009
+      - USE_MOCKS=${USE_MOCKS:-true}
+      - ORDER_SERVICE_URL=http://plus-ms-ped:3007
+      - STOCK_SERVICE_URL=http://plus-ms-estoque:3000
+      - PRODUCT_SERVICE_URL=http://plus-ms-product:3002
+      - JWT_SECRET=${JWT_SECRET:-}
+    networks:
+      - plus-network
+    restart: unless-stopped
+
+networks:
+  plus-network:
+    name: plus-network
+    external: true

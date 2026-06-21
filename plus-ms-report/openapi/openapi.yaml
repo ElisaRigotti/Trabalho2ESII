@@ -1,0 +1,314 @@
+openapi: 3.0.3
+info:
+  title: Plus MS Report — Report Service (MS9)
+  description: |
+    Microsserviço de relatórios de vendas e analytics para o sistema Plus Size.
+    Consome dados do Order Service (Grupo 8), Stock Service (Grupo 16) e Product Service (Grupo 7).
+  version: 1.0.0
+  contact:
+    name: Grupo 23
+servers:
+  - url: http://localhost:3009
+    description: Desenvolvimento local
+  - url: http://plus-ms-report:3009
+    description: Docker Compose / Ministack
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      tags: [Sistema]
+      responses:
+        '200':
+          description: Serviço disponível
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  service:
+                    type: string
+                    example: plus-ms-report
+
+  /reports/sales/by-category:
+    get:
+      summary: Relatório de vendas por categoria
+      description: |
+        Retorna vendas agrupadas por categoria de produto (Moda Festa, Casual, etc.)
+        no período especificado. Dados obtidos do Order Service e Product Service.
+      tags: [Relatórios de Vendas]
+      security:
+        - bearerAuth: []
+        - devHeaders: []
+      parameters:
+        - $ref: '#/components/parameters/startDate'
+        - $ref: '#/components/parameters/endDate'
+      responses:
+        '200':
+          description: Lista de vendas agrupadas por categoria, ordenadas por receita (desc)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SalesByCategoryItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /reports/sales/by-size:
+    get:
+      summary: Relatório de desempenho por faixa de tamanho
+      description: |
+        Retorna vendas agrupadas por tamanho (P, M, G, GG, 48, 52, etc.)
+        no período especificado. Útil para entender quais tamanhos vendem mais.
+      tags: [Relatórios de Vendas]
+      security:
+        - bearerAuth: []
+        - devHeaders: []
+      parameters:
+        - $ref: '#/components/parameters/startDate'
+        - $ref: '#/components/parameters/endDate'
+      responses:
+        '200':
+          description: Lista de vendas agrupadas por tamanho, ordenadas por quantidade (desc)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SalesBySizeItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /reports/stock/movements:
+    get:
+      summary: Visão consolidada de movimentações de estoque
+      description: |
+        Retorna um resumo das movimentações de estoque (entradas, saídas, ajustes)
+        por produto no período especificado. Dados do Stock Service e Product Service.
+      tags: [Relatórios de Estoque]
+      security:
+        - bearerAuth: []
+        - devHeaders: []
+      parameters:
+        - $ref: '#/components/parameters/startDate'
+        - $ref: '#/components/parameters/endDate'
+        - name: productId
+          in: query
+          required: false
+          description: Filtrar por produto específico
+          schema:
+            type: string
+            example: prod-vestido
+      responses:
+        '200':
+          description: Resumo de movimentações por produto
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StockMovementSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /reports/export:
+    get:
+      summary: Exportar relatório em CSV ou JSON
+      description: |
+        Gera e retorna o relatório especificado no formato escolhido (CSV ou JSON).
+        Suporta todos os três tipos de relatório.
+      tags: [Exportação]
+      security:
+        - bearerAuth: []
+        - devHeaders: []
+      parameters:
+        - name: type
+          in: query
+          required: true
+          description: Tipo do relatório a exportar
+          schema:
+            type: string
+            enum:
+              - sales-by-category
+              - sales-by-size
+              - stock-movements
+        - name: format
+          in: query
+          required: false
+          description: Formato de exportação (padrão json)
+          schema:
+            type: string
+            enum: [csv, json, pdf]
+            default: json
+        - $ref: '#/components/parameters/startDate'
+        - $ref: '#/components/parameters/endDate'
+        - name: productId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Relatório exportado
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+            text/csv:
+              schema:
+                type: string
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Tipo de relatório inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token JWT emitido pelo MS Auth (Grupo 7)
+    devHeaders:
+      type: apiKey
+      in: header
+      name: x-user-email
+      description: Header simulado para desenvolvimento local
+
+  parameters:
+    startDate:
+      name: startDate
+      in: query
+      required: false
+      description: Data de início do período (ISO 8601)
+      schema:
+        type: string
+        format: date-time
+        example: '2026-06-01T00:00:00Z'
+    endDate:
+      name: endDate
+      in: query
+      required: false
+      description: Data de fim do período (ISO 8601)
+      schema:
+        type: string
+        format: date-time
+        example: '2026-06-30T23:59:59Z'
+
+  schemas:
+    SalesByCategoryItem:
+      type: object
+      properties:
+        categoryId:
+          type: string
+          example: cat-festa
+        categoryName:
+          type: string
+          example: Moda Festa
+        totalOrders:
+          type: integer
+          example: 12
+        totalItems:
+          type: integer
+          example: 45
+        totalRevenue:
+          type: number
+          format: double
+          example: 11245.50
+
+    SalesBySizeItem:
+      type: object
+      properties:
+        size:
+          type: string
+          example: '48'
+        totalOrders:
+          type: integer
+          example: 8
+        totalItems:
+          type: integer
+          example: 20
+        totalRevenue:
+          type: number
+          format: double
+          example: 4998.00
+
+    StockMovementSummary:
+      type: object
+      properties:
+        productId:
+          type: string
+          example: prod-vestido
+        productName:
+          type: string
+          example: Vestido Midi Plus
+        totalEntradas:
+          type: integer
+          example: 20
+        totalSaidas:
+          type: integer
+          example: 5
+        totalAjustes:
+          type: integer
+          example: 0
+        saldoAtual:
+          type: integer
+          example: 23
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        details:
+          type: string
+
+  responses:
+    Unauthorized:
+      description: Token ausente ou inválido
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Sem permissão para acessar este recurso
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Erro interno do servidor
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
