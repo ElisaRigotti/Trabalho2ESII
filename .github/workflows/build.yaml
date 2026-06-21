@@ -8,12 +8,15 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: plus-ms-report
     steps:
       - uses: actions/checkout@v3
       - name: Node Setup
         uses: actions/setup-node@v4
         with:
-          node-version-file: .nvmrc
+          node-version-file: plus-ms-report/.nvmrc
       - name: Install Dependencies
         run: npm install
       - name: Build
