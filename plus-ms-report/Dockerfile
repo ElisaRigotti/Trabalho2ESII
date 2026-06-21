@@ -10,6 +10,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev
 COPY --from=builder /app/dist ./dist
+COPY openapi/ ./openapi/
 EXPOSE 3009
 ENV USE_MOCKS=true
 CMD ["node", "dist/index.js"]
